@@ -1,31 +1,24 @@
-import express from "express";
-import cors from "cors";
-import cookieParser from "cookie-parser";
 import "dotenv/config";
+import app from "./app";
+import connectDatabase from "./config/database";
+import { getJWTConfig } from "./config/auth";
 
-import activityRoutes from "./routes/activity";
-import balanceRoutes from "./routes/balance";
-import userRoutes from "./routes/users";
+async function startServer() {
+  getJWTConfig();
+  const port = Number(process.env.PORT ?? 4000);
+  if (!Number.isInteger(port) || port < 1 || port > 65535) {
+    throw new Error("PORT must be an integer between 1 and 65535");
+  }
+  await connectDatabase();
+  const server = app.listen(port);
+  server.once("listening", () => console.log("Server listening on port " + port));
+  server.on("error", () => {
+    console.error("API server failed to listen; check PORT availability");
+    process.exit(1);
+  });
+}
 
-const app = express();
-const PORT = process.env.PORT || 4000;
-
-// Middleware
-app.use(cors());
-app.use(cookieParser());
-app.use(express.json());
-
-// Routes
-app.use("/activity", activityRoutes);
-app.use("/balance", balanceRoutes);
-app.use("/user", userRoutes);
-
-// Health check
-app.get("/", (req, res) => {
-  res.json({ message: "Backend is running!" });
-});
-
-// Start server
-app.listen(PORT, () => {
-  console.log(`Server listening on port ${PORT}`);
+startServer().catch((error: Error) => {
+  console.error("API startup failed: " + error.message);
+  process.exit(1);
 });

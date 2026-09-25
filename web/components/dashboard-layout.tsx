@@ -36,8 +36,9 @@ export function DashboardLayout({ children }: DashboardLayoutProps) {
           </div>
 
           <div className="flex items-center gap-4">
-            {/* Live Metal Prices Ticker */}
+            {/* Demo Metal Prices Ticker */}
             <div className="hidden lg:flex items-center gap-4 px-4 py-1.5 rounded-lg bg-[#1A1A1A] border border-[#2A2A2A]">
+              <span className="text-xs text-[#888888]">Demo prices</span>
               <div className="flex items-center gap-2">
                 <div className="h-2 w-2 rounded-full bg-[#D4AF37] animate-pulse" />
                 <span className="text-xs text-[#888888]">GOLD</span>

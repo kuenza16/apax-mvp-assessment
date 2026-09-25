@@ -1,55 +1,48 @@
 import { Request, Response, NextFunction } from "express";
-import jwt, { JwtPayload } from "jsonwebtoken";
-import User from "../../models/userModel";
+import jwt from "jsonwebtoken";
+import mongoose from "mongoose";
+import User, { IUser } from "../../models/userModel";
+import { getJWTConfig } from "../../config/auth";
 import ErrorHandler from "../../utils/errorHandler";
 import asyncErrorHandler from "../helpers/asyncErrorHandler";
 
-/**
- * Extend Express Request to include user
- * (Ideally place this in a global typings file)
- */
 export interface AuthenticatedRequest extends Request {
-  user?: any; // replace `any` with IUser if you have a User interface
+  user?: IUser;
 }
 
-interface DecodedToken extends JwtPayload {
-  id: string;
-}
-
-// Check if user is authenticated
 export const isAuthenticatedUser = asyncErrorHandler(
-  async (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
-    const { token } = req.cookies;
-
-    if (!token) {
-      return next(new ErrorHandler("Please Login to Access", 401));
+  async (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
+    const header = req.get("authorization");
+    if (!header) return next(new ErrorHandler("Authentication required", 401));
+    const match = /^Bearer ([^\s]+)$/i.exec(header);
+    if (!match) {
+      return next(new ErrorHandler("Authorization must use Bearer <token>", 401));
     }
-
-    const decodedData = jwt.verify(
-      token,
-      process.env.JWT_SECRET as string
-    ) as DecodedToken;
-
-    const user = await User.findById(decodedData.id);
-
-    if (!user) {
-      return next(new ErrorHandler("User not found", 404));
+    const { secret } = getJWTConfig();
+    let decoded;
+    try {
+      decoded = jwt.verify(match[1], secret, { algorithms: ["HS256"] });
+    } catch (error) {
+      return next(new ErrorHandler(
+        error instanceof jwt.TokenExpiredError ? "Token expired" : "Invalid token", 401
+      ));
     }
-
+    if (typeof decoded !== "object" || typeof decoded.id !== "string" ||
+        !mongoose.isObjectIdOrHexString(decoded.id) || typeof decoded.email !== "string") {
+      return next(new ErrorHandler("Invalid token", 401));
+    }
+    const user = await User.findById(decoded.id);
+    if (!user) return next(new ErrorHandler("Authentication required", 401));
     req.user = user;
     next();
   }
 );
 
-// Role-based authorization
 export const authorizeRoles =
   (...roles: string[]) =>
-  (req: AuthenticatedRequest, res: Response, next: NextFunction) => {
+  (req: AuthenticatedRequest, _res: Response, next: NextFunction) => {
     if (!req.user || !roles.includes(req.user.role)) {
-      return next(
-        new ErrorHandler(`Role: ${req.user?.role} is not allowed`, 403)
-      );
+      return next(new ErrorHandler("Access forbidden", 403));
     }
-
     next();
   };

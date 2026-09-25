@@ -1,7 +1,6 @@
 import hardhatToolboxMochaEthersPlugin from "@nomicfoundation/hardhat-toolbox-mocha-ethers";
 import hardhatVerify from "@nomicfoundation/hardhat-verify";
-import "dotenv/config";
-import { defineConfig } from "hardhat/config";
+import { configVariable, defineConfig } from "hardhat/config";
 
 export default defineConfig({
   plugins: [
@@ -37,20 +36,17 @@ export default defineConfig({
       type: "http",
       chainType: "l1",
 
-      url: process.env.SEPOLIA_RPC_URL!,
+      url: configVariable("SEPOLIA_RPC_URL"),
 
       accounts: [
-        process.env.SEPOLIA_PRIVATE_KEY!
+        configVariable("SEPOLIA_PRIVATE_KEY")
       ],
     },
   },
 
-  etherscan: {
-
-    apiKey: {
-      sepolia:
-        process.env.ETHERSCAN_API_KEY!
-    }
-
+  verify: {
+    etherscan: {
+      apiKey: configVariable("ETHERSCAN_API_KEY"),
+    },
   },
 });

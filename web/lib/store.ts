@@ -1,6 +1,7 @@
 'use client'
 
 import { create } from 'zustand'
+import type { SessionUser } from './services/login.api'
 
 // Types
 export interface MetalPrice {
@@ -42,7 +43,11 @@ export interface AuditLog {
 }
 
 interface APAXStore {
-  // Metal Prices (Mock data with live simulation)
+  sessionUser: SessionUser | null
+  setSessionUser: (user: SessionUser) => void
+  clearPersonalHoldings: () => void
+  clearSession: () => void
+  // Demo metal prices; not a production market feed
   metalPrices: MetalPrice
   setMetalPrices: (prices: MetalPrice) => void
   
@@ -76,10 +81,10 @@ const initialMetalPrices: MetalPrice = {
 }
 
 const initialUserHoldings: UserHolding = {
-  goldGrams: 156.75,
-  silverGrams: 892.40,
-  platinumGrams: 45.20,
-  apxiTokens: 1250.00
+  goldGrams: 0,
+  silverGrams: 0,
+  platinumGrams: 0,
+  apxiTokens: 0 // No APX-i balance is provided by the holdings API.
 }
 
 const initialVaultData: VaultData = {
@@ -130,6 +135,13 @@ const initialAuditLogs: AuditLog[] = [
 ]
 
 export const useAPAXStore = create<APAXStore>((set, get) => ({
+  sessionUser: null,
+  setSessionUser: (user) => set({ sessionUser: user }),
+  clearPersonalHoldings: () => set({ userHoldings: { ...initialUserHoldings }, zakatCalculation: null }),
+  clearSession: () => set({
+    sessionUser: null, userHoldings: { ...initialUserHoldings },
+    zakatCalculation: null, activeView: 'dashboard'
+  }),
   // Metal Prices
   metalPrices: initialMetalPrices,
   setMetalPrices: (prices) => set({ metalPrices: prices }),

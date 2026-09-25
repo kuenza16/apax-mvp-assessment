@@ -75,7 +75,7 @@ export function PortfolioOverview() {
                 {dailyChange >= 0 ? '+' : ''}{formatCurrency(dailyChange)} ({dailyChangePercent}%)
               </span>
             </div>
-            <span className="text-[10px] md:text-xs text-[#888888]">past 24h</span>
+            <span className="text-[10px] md:text-xs text-[#888888]">demo 24h change</span>
           </div>
         </CardContent>
       </Card>

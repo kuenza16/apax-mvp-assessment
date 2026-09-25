@@ -1,18 +1,14 @@
 import mongoose from "mongoose";
 
-const MONGO_URI = process.env.MONGO_URI as string;
-
 const connectDatabase = async (): Promise<void> => {
+  const uri = process.env.MONGO_URI;
+  if (!uri?.trim()) throw new Error("MONGO_URI is required");
   try {
-    await mongoose.connect(MONGO_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-    } as mongoose.ConnectOptions);
-
-    console.log("Mongoose Connected");
-  } catch (error) {
-    console.error("Mongoose connection error:", error);
-    process.exit(1);
+    await mongoose.connect(uri, { serverSelectionTimeoutMS: 10000 });
+    console.log("Mongoose connected");
+  } catch {
+    // Driver errors may contain connection details. Do not print credentials.
+    throw new Error("MongoDB connection failed; check MONGO_URI and database availability");
   }
 };
 

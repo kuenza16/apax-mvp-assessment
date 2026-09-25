@@ -29,7 +29,7 @@ export function DashboardView() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl md:text-2xl font-serif font-bold text-[#E8E8E8]">
-            Welcome back, John!
+            Your portfolio
           </h1>
         </div>
         <div className="flex items-center gap-3">

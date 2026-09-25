@@ -23,21 +23,21 @@ export function AssetAllocationChart() {
     {
       name: 'Gold',
       value: goldValue,
-      percentage: ((goldValue / totalValue) * 100).toFixed(1),
+      percentage: (totalValue > 0 ? (goldValue / totalValue) * 100 : 0).toFixed(1),
       grams: userHoldings.goldGrams,
       color: COLORS.gold
     },
     {
       name: 'Silver',
       value: silverValue,
-      percentage: ((silverValue / totalValue) * 100).toFixed(1),
+      percentage: (totalValue > 0 ? (silverValue / totalValue) * 100 : 0).toFixed(1),
       grams: userHoldings.silverGrams,
       color: COLORS.silver
     },
     {
       name: 'Platinum',
       value: platinumValue,
-      percentage: ((platinumValue / totalValue) * 100).toFixed(1),
+      percentage: (totalValue > 0 ? (platinumValue / totalValue) * 100 : 0).toFixed(1),
       grams: userHoldings.platinumGrams,
       color: COLORS.platinum
     }
@@ -81,7 +81,7 @@ export function AssetAllocationChart() {
             {/* Ambient Glow */}
             <div className="absolute inset-0 bg-gradient-to-br from-[#D4AF37]/10 via-transparent to-transparent blur-[30px] rounded-full" />
 
-            <ResponsiveContainer width="100%" height="100%">
+            {totalValue === 0 ? <div className="h-full flex items-center justify-center text-sm text-[#888888]">No allocation yet</div> : <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
                   data={data}
@@ -106,7 +106,7 @@ export function AssetAllocationChart() {
                 </Pie>
                 <Tooltip content={<CustomTooltip />} />
               </PieChart>
-            </ResponsiveContainer>
+            </ResponsiveContainer>}
           </div>
 
           <div className="w-full max-w-sm">
@@ -142,7 +142,7 @@ export function AssetAllocationChart() {
             <div className="min-w-0">
               <CardTitle className="text-base md:text-lg text-[#E8E8E8] font-serif truncate">APX-i Index Token</CardTitle>
               <CardDescription className="text-xs text-[#888888] truncate">
-                Diversified index
+                Demo index composition
               </CardDescription>
             </div>
           </div>
@@ -201,7 +201,7 @@ export function AssetAllocationChart() {
                 <p className="text-[9px] text-[#555555] font-bold uppercase tracking-[0.15em]">Holdings</p>
                 <div className="flex items-baseline gap-1.5">
                   <p className="text-lg font-bold text-[#D4AF37] font-vault tracking-tight">
-                    {useAPAXStore.getState().userHoldings.apxiTokens.toLocaleString()}
+                    Not connected
                   </p>
                   <span className="text-[9px] text-[#888888] font-bold uppercase font-vault tracking-widest">APX-i</span>
                 </div>

@@ -1,8 +1,9 @@
-import mongoose, { Document, Model, Schema } from "mongoose";
-import validator from "validator";
-import bcrypt from "bcryptjs";
-import jwt from "jsonwebtoken";
-import crypto from "crypto";
+import mongoose, { Document, Model, Schema } from 'mongoose';
+import validator from 'validator';
+import bcrypt from 'bcryptjs';
+import jwt from 'jsonwebtoken';
+import crypto from 'crypto';
+import { getJWTConfig } from '../config/auth';
 
 /**
  * User interface
@@ -32,22 +33,22 @@ export interface IUser extends Document {
 const userSchema: Schema<IUser> = new mongoose.Schema({
   name: {
     type: String,
-    required: [true, "Please Enter Your Name"],
+    required: [true, 'Please Enter Your Name'],
   },
   email: {
     type: String,
-    required: [true, "Please Enter Your Email"],
+    required: [true, 'Please Enter Your Email'],
     unique: true,
-    validate: [validator.isEmail, "Please Enter a valid Email"],
+    validate: [validator.isEmail, 'Please Enter a valid Email'],
   },
   gender: {
     type: String,
-    required: [true, "Please Enter Gender"],
+    required: [true, 'Please Enter Gender'],
   },
   password: {
     type: String,
-    required: [true, "Please Enter Your Password"],
-    minlength: [8, "Password should have atleast 8 chars"],
+    required: [true, 'Please Enter Your Password'],
+    minlength: [8, 'Password should have atleast 8 chars'],
     select: false,
   },
   avatar: {
@@ -60,34 +61,31 @@ const userSchema: Schema<IUser> = new mongoose.Schema({
   },
   role: {
     type: String,
-    default: "user",
+    default: 'user',
   },
   createdAt: {
     type: Date,
     default: Date.now,
   },
-  resetPasswordToken: String,
-  resetPasswordExpire: Date,
+  resetPasswordToken: { type: String, select: false },
+  resetPasswordExpire: { type: Date, select: false },
 });
 
 /**
  * Encrypt password before saving
  */
-userSchema.pre<IUser>("save", async function (next) {
-  if (!this.isModified("password")) {
+userSchema.pre<IUser>('save', async function () {
+  if (!this.isModified('password')) {
     return;
   }
 
   this.password = await bcrypt.hash(this.password, 10);
 });
 
-
 /**
  * Compare password
  */
-userSchema.methods.comparePassword = async function (
-  enteredPassword: string
-): Promise<boolean> {
+userSchema.methods.comparePassword = async function (enteredPassword: string): Promise<boolean> {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
@@ -95,17 +93,19 @@ userSchema.methods.comparePassword = async function (
  * Reset password token
  */
 userSchema.methods.getResetPasswordToken = function (): string {
-  const resetToken = crypto.randomBytes(20).toString("hex");
+  const resetToken = crypto.randomBytes(20).toString('hex');
 
-  this.resetPasswordToken = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
+  this.resetPasswordToken = crypto.createHash('sha256').update(resetToken).digest('hex');
 
   this.resetPasswordExpire = new Date(Date.now() + 15 * 60 * 1000);
 
   return resetToken;
 };
 
-const User: Model<IUser> = mongoose.model<IUser>("User", userSchema);
+userSchema.methods.getJWTToken = function (this: IUser): string {
+  const { secret, expiresIn } = getJWTConfig();
+  return jwt.sign({ id: this._id, email: this.email }, secret, { algorithm: 'HS256', expiresIn });
+};
+
+const User: Model<IUser> = mongoose.model<IUser>('User', userSchema);
 export default User;

@@ -2,7 +2,7 @@
 
 import React from "react"
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import Image from 'next/image'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -12,6 +12,8 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { loginApi } from '@/lib/services/login.api';
+import { clearSession, saveToken } from '@/lib/session';
+import { useAPAXStore } from '@/lib/store';
 
 export default function LoginPage() {
   const router = useRouter()
@@ -21,40 +23,29 @@ export default function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
 
+  const [error, setError] = useState('')
+  const submitting = useRef(false)
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    // setIsLoading(true)
-    const res = await loginApi({ email, password })
-    console.log(res)
-    //NEED TO CLEAN UP ONCE ALL DONE, didn't get time due to mongodb connection issue.
-    // Simulate authentication delay
-    // await new Promise(resolve => setTimeout(resolve, 1000))
-
-    // Trigger vault door animation
-    // setVaultOpening(true)
-
-    // Navigate after animation
-    // await new Promise(resolve => setTimeout(resolve, 1000))
-    // router.push('/dashboard')
-    if(res.data) {
-      router.push('/dashbaord')
-    } else {
-      alert('Something went wrong')
-    }
-  }
-
-  const handleWalletConnect = async () => {
+    if (submitting.current) return
+    submitting.current = true
     setIsLoading(true)
-
-    // Simulate wallet connection
-    await new Promise(resolve => setTimeout(resolve, 1500))
-
-    // Trigger vault door animation
-    setVaultOpening(true)
-
-    // Navigate after animation
-    await new Promise(resolve => setTimeout(resolve, 1000))
-    router.push('/dashboard')
+    setError('')
+    clearSession()
+    try {
+      const result = await loginApi({ email, password })
+      saveToken(result.token)
+      useAPAXStore.getState().setSessionUser(result.user)
+      setPassword('')
+      setVaultOpening(true)
+      router.replace('/dashboard')
+    } catch (error) {
+      setError(error instanceof Error ? error.message : 'Authentication failed. Please try again.')
+    } finally {
+      submitting.current = false
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -134,7 +125,7 @@ export default function LoginPage() {
 
         {/* Glass Card */}
         <div className="glass rounded-2xl p-8 gold-glow">
-          <Tabs defaultValue="wallet" className="w-full">
+          <Tabs defaultValue="email" className="w-full">
             <TabsList className="grid w-full grid-cols-2 mb-6 bg-[#1A1A1A] p-1 rounded-lg">
               <TabsTrigger
                 value="wallet"
@@ -159,17 +150,16 @@ export default function LoginPage() {
                   <Wallet className="w-8 h-8 text-[#D4AF37]" />
                 </div>
                 <p className="text-sm text-[#888888] mb-6">
-                  Connect your SidraChain wallet to access the vault
+                  Wallet authentication is not connected. Please sign in with email.
                 </p>
               </div>
 
               <Button
-                onClick={handleWalletConnect}
-                disabled={isLoading}
+                disabled
                 className="w-full metallic-shine bg-[#D4AF37] text-[#0A0A0A] hover:bg-[#E6C861] font-semibold h-12 gap-2"
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-[#0A0A0A]/30 border-t-[#0A0A0A] rounded-full animate-spin" />
+                  <div role="status" aria-label="Signing in" className="w-5 h-5 border-2 border-[#0A0A0A]/30 border-t-[#0A0A0A] rounded-full animate-spin" />
                 ) : (
                   <>
                     Connect Sidra Ledger Gateway
@@ -191,14 +181,14 @@ export default function LoginPage() {
                 <Button
                   variant="outline"
                   className="border-[#2A2A2A] text-[#C0C0C0] hover:bg-[#1A1A1A] hover:border-[#D4AF37]/30 bg-transparent"
-                  disabled={isLoading}
+                  disabled
                 >
                   MetaMask
                 </Button>
                 <Button
                   variant="outline"
                   className="border-[#2A2A2A] text-[#C0C0C0] hover:bg-[#1A1A1A] hover:border-[#D4AF37]/30 bg-transparent"
-                  disabled={isLoading}
+                  disabled
                 >
                   WalletConnect
                 </Button>
@@ -207,13 +197,16 @@ export default function LoginPage() {
 
             {/* Email Tab */}
             <TabsContent value="email">
-              <form onSubmit={handleLogin} className="space-y-4">
+              <form onSubmit={handleLogin} className="space-y-4" aria-busy={isLoading}>
+                {error && <p role="alert" className="text-sm text-red-400">{error}</p>}
                 <div className="space-y-2">
                   <Label htmlFor="email" className="text-[#C0C0C0]">Email</Label>
                   <div className="relative">
                     <EnvelopeSimple className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#888888]" />
                     <Input
                       id="email"
+                      disabled={isLoading}
+                      autoComplete="email"
                       type="email"
                       placeholder="client@apax.institutional"
                       value={email}
@@ -230,6 +223,8 @@ export default function LoginPage() {
                     <LockKey className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[#888888]" />
                     <Input
                       id="password"
+                      disabled={isLoading}
+                      autoComplete="current-password"
                       type={showPassword ? 'text' : 'password'}
                       placeholder="Enter your password"
                       value={password}
@@ -249,8 +244,8 @@ export default function LoginPage() {
 
                 <div className="flex items-center justify-between text-sm">
                   <label className="flex items-center gap-2 text-[#888888]">
-                    <input type="checkbox" className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#D4AF37] focus:ring-[#D4AF37]/20" />
-                    Remember me
+                    <input type="checkbox" checked readOnly disabled className="rounded border-[#2A2A2A] bg-[#1A1A1A] text-[#D4AF37] focus:ring-[#D4AF37]/20" />
+                    Session saved on this browser
                   </label>
                   <a href="#" className="text-[#D4AF37] hover:text-[#E6C861]">Forgot password?</a>
                 </div>
@@ -261,7 +256,7 @@ export default function LoginPage() {
                   className="w-full metallic-shine bg-[#D4AF37] text-[#0A0A0A] hover:bg-[#E6C861] font-semibold h-12 gap-2"
                 >
                   {isLoading ? (
-                    <div className="w-5 h-5 border-2 border-[#0A0A0A]/30 border-t-[#0A0A0A] rounded-full animate-spin" />
+                    <div role="status" aria-label="Signing in" className="w-5 h-5 border-2 border-[#0A0A0A]/30 border-t-[#0A0A0A] rounded-full animate-spin" />
                   ) : (
                     <>
                       Sign In

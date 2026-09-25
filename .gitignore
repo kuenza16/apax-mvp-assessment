@@ -16,6 +16,7 @@ yarn-error.log*
 
 # env files
 .env*
+**/.config.env
 
 # vercel
 **/.vercel
@@ -25,3 +26,11 @@ yarn-error.log*
 next-env.d.ts
 
 dist
+
+# Local review artifacts and possible test database exports (not source tests)
+.review-local/
+*.log
+.phase*-browser-profile/
+apax_auth_test_*/
+apax_holdings_test_*/
+apax_ui_test_*/

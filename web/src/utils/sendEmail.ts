@@ -1,7 +1,5 @@
 import sgMail from "@sendgrid/mail";
 
-sgMail.setApiKey(process.env.SENDGRID_API_KEY as string);
-
 interface SendEmailOptions {
   email: string;
   templateId: string;
@@ -9,6 +7,9 @@ interface SendEmailOptions {
 }
 
 const sendEmail = async (options: SendEmailOptions): Promise<void> => {
+  const apiKey = process.env.SENDGRID_API_KEY;
+  if (!apiKey) throw new Error("Email service is not configured");
+  sgMail.setApiKey(apiKey);
   const msg = {
     to: options.email,
     from: process.env.SENDGRID_MAIL as string,
